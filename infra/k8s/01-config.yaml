@@ -1,0 +1,30 @@
+# App configuration. Every backend points at an in-cluster Service (see
+# 02-infra.yaml). The API runs 0 in-process workers — the worker Deployment
+# (04-worker.yaml) consumes the Kafka bus and is what the HPA scales.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agent-config
+  namespace: agentic
+data:
+  AGENT_LLM_PROVIDER: "mock"            # set "anthropic" + the secret to use a real model
+  AGENT_CHECKPOINTER: "redis"
+  AGENT_REDIS_URL: "redis://redis:6379/0"
+  AGENT_CONVERSATION_STORE: "postgres"
+  AGENT_POSTGRES_DSN: "postgresql+asyncpg://agent:agent@postgres:5432/agent"
+  AGENT_VECTORSTORE: "qdrant"
+  AGENT_QDRANT_URL: "http://qdrant:6333"
+  AGENT_EVENTBUS: "kafka"
+  AGENT_KAFKA_BOOTSTRAP: "redpanda:9092"
+  AGENT_API_INPROC_WORKERS: "0"
+  AGENT_TRACING_ENABLED: "false"
+  AGENT_SERVICE_URL: "http://api:8000"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: agent-secrets
+  namespace: agentic
+type: Opaque
+stringData:
+  AGENT_ANTHROPIC_API_KEY: ""           # paste a key here to enable the anthropic provider

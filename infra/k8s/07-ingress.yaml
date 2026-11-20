@@ -1,0 +1,22 @@
+# Optional ingress (needs an ingress controller, e.g. ingress-nginx).
+# Without one, just port-forward:
+#   kubectl -n agentic port-forward svc/ui 7860:7860
+#   kubectl -n agentic port-forward svc/api 8000:8000
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agent-ingress
+  namespace: agentic
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: agent.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: {service: {name: api, port: {number: 8000}}}
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: ui, port: {number: 7860}}}

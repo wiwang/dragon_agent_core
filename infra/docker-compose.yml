@@ -1,0 +1,65 @@
+# Local production-like infra. Bring it up, then flip env vars (see .env.example)
+# so the same app code runs on real backends:
+#   docker compose -f infra/docker-compose.yml up -d
+name: agentic-agent
+
+services:
+  redis:                       # state checkpointing
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:                    # conversation storage
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: agent
+      POSTGRES_DB: agent
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  qdrant:                      # vector DB for RAG
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333"]
+
+  redpanda:                    # Kafka-API compatible broker for distributed events
+    image: redpandadata/redpanda:latest
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://localhost:9092
+    ports: ["9092:9092"]
+
+  jaeger:                      # OpenTelemetry traces (OTLP in, UI on 16686)
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # UI
+      - "4317:4317"     # OTLP gRPC
+
+  mlflow:                      # evaluation tracking (UI on 5000)
+    image: ghcr.io/mlflow/mlflow:latest
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlruns/mlflow.db
+      --artifacts-destination /mlruns
+    ports: ["5001:5000"]   # 5000 is taken by AirPlay on macOS; use 5001 on the host
+    volumes: ["mlruns:/mlruns"]
+
+volumes:
+  mlruns:

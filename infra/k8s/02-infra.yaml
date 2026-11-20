@@ -1,0 +1,100 @@
+# Dev-grade in-cluster backends (ephemeral storage). For production these would
+# be managed services or StatefulSets with PVCs — kept simple here so a single
+# `kubectl apply -f infra/k8s` brings up a working stack on kind/minikube.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: redis, namespace: agentic}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: redis}}
+  template:
+    metadata: {labels: {app: redis}}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports: [{containerPort: 6379}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: redis, namespace: agentic}
+spec:
+  selector: {app: redis}
+  ports: [{port: 6379, targetPort: 6379}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: postgres, namespace: agentic}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - {name: POSTGRES_USER, value: agent}
+            - {name: POSTGRES_PASSWORD, value: agent}
+            - {name: POSTGRES_DB, value: agent}
+          ports: [{containerPort: 5432}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres, namespace: agentic}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: qdrant, namespace: agentic}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: qdrant}}
+  template:
+    metadata: {labels: {app: qdrant}}
+    spec:
+      containers:
+        - name: qdrant
+          image: qdrant/qdrant:latest
+          ports: [{containerPort: 6333}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: qdrant, namespace: agentic}
+spec:
+  selector: {app: qdrant}
+  ports: [{port: 6333, targetPort: 6333}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: redpanda, namespace: agentic}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: redpanda}}
+  template:
+    metadata: {labels: {app: redpanda}}
+    spec:
+      containers:
+        - name: redpanda
+          image: redpandadata/redpanda:latest
+          args:
+            - redpanda start
+            - --overprovisioned
+            - --smp 1
+            - --memory 512M
+            - --reserve-memory 0M
+            - --node-id 0
+            - --check=false
+            - --kafka-addr PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr PLAINTEXT://redpanda:9092
+          ports: [{containerPort: 9092}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: redpanda, namespace: agentic}
+spec:
+  selector: {app: redpanda}
+  ports: [{port: 9092, targetPort: 9092}]

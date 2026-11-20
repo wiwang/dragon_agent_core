@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ui
+  namespace: agentic
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: ui}}
+  template:
+    metadata: {labels: {app: ui}}
+    spec:
+      containers:
+        - name: ui
+          image: agentic-agent:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "ui.gradio_app"]
+          ports: [{containerPort: 7860}]
+          envFrom:
+            - configMapRef: {name: agent-config}
+          resources:
+            requests: {cpu: "100m", memory: "256Mi"}
+            limits: {cpu: "500m", memory: "512Mi"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ui
+  namespace: agentic
+spec:
+  selector: {app: ui}
+  ports: [{port: 7860, targetPort: 7860}]
